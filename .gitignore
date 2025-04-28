@@ -1,0 +1,6 @@
+*.cu
+*.csv
+*.log
+**/bin/*
+**/drstencil
+**/common.hpp
