@@ -18,8 +18,8 @@ class DRStencil
 		int merge_forward;
 		int L, M, N, iterations;
 		std::set<std::tuple<int, int, int>> forward_k, forward_j, forward_i, backward;
-		std::map<std::tuple<int, int, int>, double> stencil, fused;
-		void do_fusing (int, int, int, double, int);
+		std::map<std::tuple<int, int, int>, float> stencil, fused;
+		void do_fusing (int, int, int, float, int);
 	public:
 		DRStencil (int distance_, int step_num_, int merge_f) 
 			: distance (distance_), step_num (step_num_), merge_forward (merge_f)
@@ -58,7 +58,7 @@ int DRStencil::get_stencil (const std::string &filename)
 	}
 
 	int k, j, i;
-	double coe;
+	float coe;
 	std::string str;
 	while (!stcFile.eof()) {
 		stcFile >> str;
@@ -259,7 +259,7 @@ void DRStencil::partition () {
 }
 
 // fusing the stencil recursively
-void DRStencil::do_fusing(int k, int j, int i, double coe, int step)
+void DRStencil::do_fusing(int k, int j, int i, float coe, int step)
 {
 	if(step == 0) {
 		if (fused.find(std::make_tuple(k, j, i)) != fused.end())

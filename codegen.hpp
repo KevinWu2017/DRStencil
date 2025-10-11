@@ -145,7 +145,7 @@ void codeGen::gpu_code_gen ()
 	std::string indent = "\t";
     int indent_cnt = 1;
 
-	gpu_code << "__global__ void dr_" << stencil_name << " (double *d_in, double *d_out)\n";
+	gpu_code << "__global__ void dr_" << stencil_name << " (float *d_in, float *d_out)\n";
 	gpu_code << "{" << std::endl;
 	// index i
 	gpu_code << std::string(indent_cnt, '\t') << "int i = " << (bmerge_x && mx > 1 ? std::to_string(mx) + "*" : "" ) 
@@ -163,21 +163,21 @@ void codeGen::gpu_code_gen ()
 	int k = (int)(blockIdx.z) * Sn;
 	int k_ed = min(L - Halo, k + Sn + Halo);
 
-	double (*in)[M][N] = (double (*)[M][N]) d_in;
-	double (*out)[M][N] = (double (*)[M][N]) d_out;
+	float (*in)[M][N] = (float (*)[M][N]) d_in;
+	float (*out)[M][N] = (float (*)[M][N]) d_out;
 	)" << std::endl;
 
 	// variables declations
-	gpu_code << std::string(indent_cnt, '\t') << "double __shared__ in_shm[Range][" 
+	gpu_code << std::string(indent_cnt, '\t') << "float __shared__ in_shm[Range][" 
 			<< (my > 1 ? std::to_string(my) + "*" : "") << "By]["
 			<< (mx > 1 ? std::to_string(mx) + "*" : "") << "Bx];" << std::endl;
 	if (prefetch)
-        gpu_code << std::string(indent_cnt, '\t') << "double pre" << (my > 1 ? "[" + std::to_string(my) + "]" : "")
+        gpu_code << std::string(indent_cnt, '\t') << "float pre" << (my > 1 ? "[" + std::to_string(my) + "]" : "")
 	    		<< (mx > 1 ? "[" + std::to_string(mx) + "]" : "") << ";" << std::endl;
-	//gpu_code << std::string(indent_cnt, '\t') << "double __shared__ out_shm["
+	//gpu_code << std::string(indent_cnt, '\t') << "float __shared__ out_shm["
 	//		<< (my > 1 ? std::to_string(my) + "*" : "") << "By-Halo*2]["
 	//		<< (mx > 1 ? std::to_string(mx) + "*" : "") << "Bx-Halo*2];" << std::endl;
-	//gpu_code << std::string(indent_cnt, '\t') << "double forward_k[Dist]" 
+	//gpu_code << std::string(indent_cnt, '\t') << "float forward_k[Dist]" 
     //      << (my > 1 ? "[" + std::to_string(my) + "]" : "")
 	//		<< (mx > 1 ? "[" + std::to_string(mx) + "]" : "") << ";" << std::endl;
 
@@ -552,15 +552,15 @@ void codeGen::host_code_gen ()
 int main(int argc, char **argv)
 {
 	puts("Initiating ...");
-	double (*h_in)[M][N] = (double (*)[M][N]) getRandom3DArray (L, M, N);
-	double (*h_out)[M][N] = (double (*)[M][N]) getZero3DArray (L, M, N);
+	float (*h_in)[M][N] = (float (*)[M][N]) getRandom3DArray (L, M, N);
+	float (*h_out)[M][N] = (float (*)[M][N]) getZero3DArray (L, M, N);
 
-	unsigned int nbytes = sizeof(double) * L * M * N;
-	double *in;
+	unsigned int nbytes = sizeof(float) * L * M * N;
+	float *in;
 	cudaMalloc (&in, nbytes);
 	check_error ("Failed to allocate device memory for in.\n");
 	cudaMemcpy (in, h_in, nbytes, cudaMemcpyHostToDevice);
-	double *out;
+	float *out;
 	cudaMalloc (&out, nbytes);
 	check_error ("Failed to allocate device memory for out.\n");
 	cudaMemcpy (out, h_out, nbytes, cudaMemcpyHostToDevice);
@@ -577,7 +577,7 @@ int main(int argc, char **argv)
 	host_code << indent << indent << "dr_" << stencil_name << "<<<grid_config, block_config>>> (in, out);" << std::endl;
 	host_code << indent << "}" << std::endl << std::endl;
 	//host_code << indent << "cudaEventRecord (startTime, 0);" << std::endl;
-	host_code << indent << "double startTime = get_time();" << std::endl;
+	host_code << indent << "float startTime = get_time();" << std::endl;
 	host_code << indent << "for (int t = 0; t < Iterations; t += " << 2 * dr_stencil->get_step_num () <<") {" << std::endl;
 	host_code << indent << indent << "dr_" << stencil_name << "<<<grid_config, block_config>>> (in, out);" << std::endl;
 	host_code << indent << indent << "dr_" << stencil_name << "<<<grid_config, block_config>>> (out, in);" << std::endl;
@@ -594,11 +594,11 @@ int main(int argc, char **argv)
 
 	puts ("Checking error ...");
 
-	double *g_in;
+	float *g_in;
 	cudaMalloc (&g_in, nbytes);
 	check_error ("Failed to allocate device memory for g_in.\n");
 	cudaMemcpy (g_in, h_in, nbytes, cudaMemcpyHostToDevice);
-	double *g_out;
+	float *g_out;
 	cudaMalloc (&g_out, nbytes);
 	check_error ("Failed to allocate device memory for g_out.\n");
 	cudaMemcpy (g_out, h_out, nbytes, cudaMemcpyHostToDevice);
@@ -614,10 +614,10 @@ int main(int argc, char **argv)
 	cudaDeviceSynchronize();
 	check_error ("Kernel(gold) error");
 	
-	double* h_g_out = (double*)h_in; 	// reuse the memory of the input array
+	float* h_g_out = (float*)h_in; 	// reuse the memory of the input array
 	cudaMemcpy(h_out, in, nbytes, cudaMemcpyDeviceToHost);		
 	cudaMemcpy(h_g_out, g_in, nbytes, cudaMemcpyDeviceToHost);		
-	double error = checkError3D (M, N, (double*)h_out, (double*)h_g_out, Halo, L-Halo, Halo, M-Halo, Halo, N-Halo);
+	float error = checkError3D (M, N, (float*)h_out, (float*)h_g_out, Halo, L-Halo, Halo, M-Halo, Halo, N-Halo);
 	printf("[Test] RMS Error: %e\n", error);
 
 	cudaFree(g_in);
@@ -640,15 +640,15 @@ std::string codeGen::gold_gpu_code_gen ()
 	std::string indent ("\t");
 
 	out_code << std::endl;
-	out_code << "__global__ void gold_" << stencil_name << " (double *d_in, double *d_out)\n";
+	out_code << "__global__ void gold_" << stencil_name << " (float *d_in, float *d_out)\n";
 	out_code << "{\n";
 	out_code << indent << "int i = (int)(blockIdx.x) * (int)(blockDim.x) + (int)(threadIdx.x);\n";
 	out_code << indent << "int j = (int)(blockIdx.y) * (int)(blockDim.y) + (int)(threadIdx.y);\n";
 	out_code << indent << "int k = (int)(blockIdx.z) * (int)(blockDim.z) + (int)(threadIdx.z);\n";
 
 	out_code << "\n";
-	out_code << indent << "double (*in)[M][N] = (double (*)[M][N]) d_in;\n";
-	out_code << indent << "double (*out)[M][N] = (double (*)[M][N]) d_out;\n";
+	out_code << indent << "float (*in)[M][N] = (float (*)[M][N]) d_in;\n";
+	out_code << indent << "float (*out)[M][N] = (float (*)[M][N]) d_out;\n";
 
 	out_code << "\n";
 	out_code << indent << "if (k >= Halo && k < L - Halo && j >= Halo && j < M - Halo && i >= Halo && i < N - Halo) {" << std::endl;
@@ -675,15 +675,15 @@ void codeGen::gold_code_gen ()
 int main(int argc, char **argv)
 {
 	puts("Initiating...");
-	double (*h_in)[M][N] = (double (*)[M][N]) getRandom3DArray (L, M, N);
-	double (*h_out)[M][N] = (double (*)[M][N]) getZero3DArray (L, M, N);
+	float (*h_in)[M][N] = (float (*)[M][N]) getRandom3DArray (L, M, N);
+	float (*h_out)[M][N] = (float (*)[M][N]) getZero3DArray (L, M, N);
 
-	unsigned int nbytes = sizeof(double) * L * M * N;
-	double *in;
+	unsigned int nbytes = sizeof(float) * L * M * N;
+	float *in;
 	cudaMalloc (&in, nbytes);
 	check_error ("Failed to allocate device memory for in.\n");
 	cudaMemcpy (in, h_in, nbytes, cudaMemcpyHostToDevice);
-	double *out;
+	float *out;
 	cudaMalloc (&out, nbytes);
 	check_error ("Failed to allocate device memory for out.\n");
 	cudaMemcpy (out, h_out, nbytes, cudaMemcpyHostToDevice);

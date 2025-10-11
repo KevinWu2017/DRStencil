@@ -151,7 +151,7 @@ void codeGen_2d::gpu_code_gen_streaming ()
 	std::string indent = "\t";
     int indent_cnt = 1;
 
-	gpu_code << "__global__ void dr_" << stencil_name << " (double *d_in, double *d_out)\n";
+	gpu_code << "__global__ void dr_" << stencil_name << " (float *d_in, float *d_out)\n";
 	gpu_code << "{" << std::endl;
 	// index i
 	gpu_code << std::string(indent_cnt, '\t') << "int i = " << (bmerge_x && mx > 1 ? std::to_string(mx) + "*" : "" ) 
@@ -163,20 +163,20 @@ void codeGen_2d::gpu_code_gen_streaming ()
 	int j = (int)(blockIdx.y) * Sn;
 	int j_ed = min(M - Halo, j + Sn + Halo);
 
-	double (*in)[N] = (double (*)[N]) d_in;
-	double (*out)[N] = (double (*)[N]) d_out;
+	float (*in)[N] = (float (*)[N]) d_in;
+	float (*out)[N] = (float (*)[N]) d_out;
 	)" << std::endl;
 
 	// variables declations
-	gpu_code << std::string(indent_cnt, '\t') << "double __shared__ in_shm[Range][" 
+	gpu_code << std::string(indent_cnt, '\t') << "float __shared__ in_shm[Range][" 
 			<< (mx > 1 ? std::to_string(mx) + "*" : "") << "Bx];" << std::endl;
 	if (prefetch)
-        gpu_code << std::string(indent_cnt, '\t') << "double pre" 
+        gpu_code << std::string(indent_cnt, '\t') << "float pre" 
 	    		<< (mx > 1 ? "[" + std::to_string(mx) + "]" : "") << ";" << std::endl;
-	//gpu_code << std::string(indent_cnt, '\t') << "double __shared__ out_shm["
+	//gpu_code << std::string(indent_cnt, '\t') << "float __shared__ out_shm["
 	//		<< (my > 1 ? std::to_string(my) + "*" : "") << "By-Halo*2]["
 	//		<< (mx > 1 ? std::to_string(mx) + "*" : "") << "Bx-Halo*2];" << std::endl;
-	//gpu_code << std::string(indent_cnt, '\t') << "double forward_j[Dist]" 
+	//gpu_code << std::string(indent_cnt, '\t') << "float forward_j[Dist]" 
     //      << (my > 1 ? "[" + std::to_string(my) + "]" : "")
 	//		<< (mx > 1 ? "[" + std::to_string(mx) + "]" : "") << ";" << std::endl;
 
@@ -458,7 +458,7 @@ void codeGen_2d::gpu_code_gen ()
 	std::string indent = "\t";
     int indent_cnt = 1;
 
-	gpu_code << "__global__ void dr_" << stencil_name << " (double *d_in, double *d_out)\n";
+	gpu_code << "__global__ void dr_" << stencil_name << " (float *d_in, float *d_out)\n";
 	gpu_code << "{" << std::endl;
 	// index i
 	gpu_code << std::string(indent_cnt, '\t') << "int i = " << (bmerge_x && mx > 1 ? std::to_string(mx) + "*" : "" ) 
@@ -474,12 +474,12 @@ void codeGen_2d::gpu_code_gen ()
 			<< "(int)blockDim.y-Halo*2) + j;" << std::endl;
 	gpu_code << R"(
 
-	double (*in)[N] = (double (*)[N]) d_in;
-	double (*out)[N] = (double (*)[N]) d_out;
+	float (*in)[N] = (float (*)[N]) d_in;
+	float (*out)[N] = (float (*)[N]) d_out;
 	)" << std::endl;
 
 	// variables declations
-	gpu_code << std::string(indent_cnt, '\t') << "double __shared__ in_shm[" 
+	gpu_code << std::string(indent_cnt, '\t') << "float __shared__ in_shm[" 
 			<< (my > 1 ? std::to_string(my) + "*" : "") << "By]["
 			<< (mx > 1 ? std::to_string(mx) + "*" : "") << "Bx];" << std::endl;
 	gpu_code << std::endl;;
@@ -569,15 +569,15 @@ void codeGen_2d::host_code_gen ()
 int main(int argc, char **argv)
 {
 	puts("Initiating ...");
-	double (*h_in)[N] = (double (*)[N]) getRandom2DArray (M, N);
-	double (*h_out)[N] = (double (*)[N]) getZero2DArray (M, N);
+	float (*h_in)[N] = (float (*)[N]) getRandom2DArray (M, N);
+	float (*h_out)[N] = (float (*)[N]) getZero2DArray (M, N);
 
-	unsigned int nbytes = sizeof(double) * M * N;
-	double *in;
+	unsigned int nbytes = sizeof(float) * M * N;
+	float *in;
 	cudaMalloc (&in, nbytes);
 	check_error ("Failed to allocate device memory for in.\n");
 	cudaMemcpy (in, h_in, nbytes, cudaMemcpyHostToDevice);
-	double *out;
+	float *out;
 	cudaMalloc (&out, nbytes);
 	check_error ("Failed to allocate device memory for out.\n");
 	cudaMemcpy (out, h_out, nbytes, cudaMemcpyHostToDevice);
@@ -623,11 +623,11 @@ int main(int argc, char **argv)
 
 	puts ("Checking error ...");
 
-	double *g_in;
+	float *g_in;
 	cudaMalloc (&g_in, nbytes);
 	check_error ("Failed to allocate device memory for g_in.\n");
 	cudaMemcpy (g_in, h_in, nbytes, cudaMemcpyHostToDevice);
-	double *g_out;
+	float *g_out;
 	cudaMalloc (&g_out, nbytes);
 	check_error ("Failed to allocate device memory for g_out.\n");
 	cudaMemcpy (g_out, h_out, nbytes, cudaMemcpyHostToDevice);
@@ -643,10 +643,10 @@ int main(int argc, char **argv)
 	cudaDeviceSynchronize();
 	check_error ("Kernel(gold) error");
 	
-	double* h_g_out = (double*)h_in; 	// reuse the memory of the input array
+	float* h_g_out = (float*)h_in; 	// reuse the memory of the input array
 	cudaMemcpy(h_out, in, nbytes, cudaMemcpyDeviceToHost);		
 	cudaMemcpy(h_g_out, g_in, nbytes, cudaMemcpyDeviceToHost);		
-	double error = checkError2D (N, (double*)h_out, (double*)h_g_out, Halo, M-Halo, Halo, N-Halo);
+	float error = checkError2D (N, (float*)h_out, (float*)h_g_out, Halo, M-Halo, Halo, N-Halo);
 	printf("[Test] RMS Error: %e\n", error);
 
 	cudaFree(g_in);
@@ -669,14 +669,14 @@ std::string codeGen_2d::gold_gpu_code_gen ()
 	std::string indent ("\t");
 
 	out_code << std::endl;
-	out_code << "__global__ void gold_" << stencil_name << " (double *d_in, double *d_out)\n";
+	out_code << "__global__ void gold_" << stencil_name << " (float *d_in, float *d_out)\n";
 	out_code << "{\n";
 	out_code << indent << "int i = (int)(blockIdx.x) * (int)(blockDim.x) + (int)(threadIdx.x);\n";
 	out_code << indent << "int j = (int)(blockIdx.y) * (int)(blockDim.y) + (int)(threadIdx.y);\n";
 
 	out_code << "\n";
-	out_code << indent << "double (*in)[N] = (double (*)[N]) d_in;\n";
-	out_code << indent << "double (*out)[N] = (double (*)[N]) d_out;\n";
+	out_code << indent << "float (*in)[N] = (float (*)[N]) d_in;\n";
+	out_code << indent << "float (*out)[N] = (float (*)[N]) d_out;\n";
 
 	out_code << "\n";
 	out_code << indent << "if (j >= Halo && j < M - Halo && i >= Halo && i < N - Halo) {" << std::endl;
@@ -703,15 +703,15 @@ void codeGen_2d::gold_code_gen ()
 int main(int argc, char **argv)
 {
 	puts("Initiating...");
-	double (*h_in)[N] = (double (*)[N]) getRandom2DArray (M, N);
-	double (*h_out)[N] = (double (*)[N]) getZero2DArray (M, N);
+	float (*h_in)[N] = (float (*)[N]) getRandom2DArray (M, N);
+	float (*h_out)[N] = (float (*)[N]) getZero2DArray (M, N);
 
-	unsigned int nbytes = sizeof(double) * M * N;
-	double *in;
+	unsigned int nbytes = sizeof(float) * M * N;
+	float *in;
 	cudaMalloc (&in, nbytes);
 	check_error ("Failed to allocate device memory for in.\n");
 	cudaMemcpy (in, h_in, nbytes, cudaMemcpyHostToDevice);
-	double *out;
+	float *out;
 	cudaMalloc (&out, nbytes);
 	check_error ("Failed to allocate device memory for out.\n");
 	cudaMemcpy (out, h_out, nbytes, cudaMemcpyHostToDevice);
