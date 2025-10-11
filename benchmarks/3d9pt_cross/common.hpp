@@ -1,49 +1,49 @@
-#ifndef __GEdoubleRANDOM_HPP__
-#define __GEdoubleRANDOM_HPP__
+#ifndef __GEfloatRANDOM_HPP__
+#define __GEfloatRANDOM_HPP__
 
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
 
 
-double get_random() {
-  return ((double)(rand())/(double)(RAND_MAX-1));
+float get_random() {
+  return ((float)(rand())/(float)(RAND_MAX-1));
 }
 
 
-double* getRandom3DArray(int height, int width_y, int width_x) {
-  double (*a)[width_y][width_x] =
-    (double (*)[width_y][width_x])new double[height*width_y*width_x];
+float* getRandom3DArray(int height, int width_y, int width_x) {
+  float (*a)[width_y][width_x] =
+    (float (*)[width_y][width_x])new float[height*width_y*width_x];
   for (int i = 0; i < height; i++)
     for (int j = 0; j < width_y; j++)
       for (int k = 0; k < width_x; k++) {
         a[i][j][k] = get_random();
       }
-  return (double*)a;
+  return (float*)a;
 }
 
-double* getZero3DArray(int height, int width_y, int width_x) {
-  double (*a)[width_y][width_x] =
-    (double (*)[width_y][width_x])new double[height*width_y*width_x];
-  memset((void*)a, 0, sizeof(double) * height * width_y * width_x);
-  return (double*)a;
+float* getZero3DArray(int height, int width_y, int width_x) {
+  float (*a)[width_y][width_x] =
+    (float (*)[width_y][width_x])new float[height*width_y*width_x];
+  memset((void*)a, 0, sizeof(float) * height * width_y * width_x);
+  return (float*)a;
 }
 
-double checkError3D
-(int width_y, int width_x, const double *l_output, const double *l_reference, int z_lb,
+float checkError3D
+(int width_y, int width_x, const float *l_output, const float *l_reference, int z_lb,
  int z_ub, int y_lb, int y_ub, int x_lb, int x_ub) {
-  const double (*output)[width_y][width_x] =
-    (const double (*)[width_y][width_x])(l_output);
-  const double (*reference)[width_y][width_x] =
-    (const double (*)[width_y][width_x])(l_reference);
-  double error = 0.0;
-  double max_error = 1e-13;
+  const float (*output)[width_y][width_x] =
+    (const float (*)[width_y][width_x])(l_output);
+  const float (*reference)[width_y][width_x] =
+    (const float (*)[width_y][width_x])(l_reference);
+  float error = 0.0;
+  float max_error = 1e-13;
   int max_k = 0, max_j = 0, max_i = 0;
   for (int i = z_lb; i < z_ub; i++)
     for (int j = y_lb; j < y_ub; j++)
       for (int k = x_lb; k < x_ub; k++) {
 	//printf ("real var1[%d][%d][%d] = %.6f and %.6f\n", i, j, k, reference[i][j][k], output[i][j][k]);
-        double curr_error = output[i][j][k] - reference[i][j][k];
+        float curr_error = output[i][j][k] - reference[i][j][k];
         curr_error = (curr_error < 0.0 ? -curr_error : curr_error);
         error += curr_error * curr_error;
         if (curr_error > max_error) {
