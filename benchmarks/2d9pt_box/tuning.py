@@ -124,7 +124,7 @@ def searchSpace(fuse_steps: int):
     blockSize = itertools.product([2**i for i in range(0, 10)], repeat=2)
     for paraVector in filter(FilterParams, itertools.product(
       [fuse_steps], # time steps to fuse
-      [dist for dist in range (1, 3)], # Dist
+      [dist for dist in range (1, fuse_steps + 1)], # Dist
       filter(lambda sz: sz[0] * sz[1] < 2 ** maxThreadsPerBlockLg2, 
         blockSize), # blockSize
       [False, True], # streaming
@@ -138,6 +138,7 @@ def searchSpace(fuse_steps: int):
       [False, True], # prefetch
      )):
         paras.append (paraVector)
+    print ("Total configurations: " + str(len(paras)) + ", fuse steps: " + str(fuse_steps))
 
     random.shuffle (paras)
     cnt = 0
@@ -164,5 +165,6 @@ def searchSpace(fuse_steps: int):
     durationLog.close()
 
 if __name__ == '__main__':
-    for fuse_steps in range(1, 9):
+    for fuse_steps in range(3, 9):
+        print(f"starting search for fuse steps = {fuse_steps}")
         searchSpace(fuse_steps)
