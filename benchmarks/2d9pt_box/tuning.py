@@ -165,6 +165,6 @@ def searchSpace(fuse_steps: int):
     durationLog.close()
 
 if __name__ == '__main__':
-    for fuse_steps in range(3, 9):
+    for fuse_steps in range(1, 9):
         print(f"starting search for fuse steps = {fuse_steps}")
         searchSpace(fuse_steps)
