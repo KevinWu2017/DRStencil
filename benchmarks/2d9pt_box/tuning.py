@@ -90,7 +90,7 @@ def getElapsedTime (start, end):
     return (end - start).seconds + (end - start).microseconds / 1e6
 
 
-def getMetrics(stencilName, startTime, best):
+def getMetrics(stencilName, startTime, best, fuse_steps):
     logfile = open('prof/'+str(stencilName)+'.csv', 'r')
     idx = -1
     counter = 0
@@ -104,7 +104,7 @@ def getMetrics(stencilName, startTime, best):
                 if duration.isdigit():
                     if int(best) > int(duration):
                         best = int(duration)
-                        durationLog = open('duration.log', 'a')
+                        durationLog = open(f'duration_{fuse_steps}.log', 'a')
                         currentTime = datetime.datetime.now()
                         durationLog.write (str((currentTime-startTime).seconds) + ' s, ' + str(best) + '\n')
                         durationLog.close()
@@ -115,7 +115,7 @@ def getMetrics(stencilName, startTime, best):
     return best
 
 
-def searchSpace():
+def searchSpace(fuse_steps: int):
 
     startTime = datetime.datetime.now()
     best = 1e12
@@ -123,8 +123,8 @@ def searchSpace():
 
     blockSize = itertools.product([2**i for i in range(0, 10)], repeat=2)
     for paraVector in filter(FilterParams, itertools.product(
-      [step for step in range (2, 3)], # time steps to fuse
-      [dist for dist in range (1, 3)], # Dist
+      [fuse_steps], # time steps to fuse
+      [dist for dist in range (1, fuse_steps + 1)], # Dist
       filter(lambda sz: sz[0] * sz[1] < 2 ** maxThreadsPerBlockLg2, 
         blockSize), # blockSize
       [False, True], # streaming
@@ -138,6 +138,7 @@ def searchSpace():
       [False, True], # prefetch
      )):
         paras.append (paraVector)
+    print ("Total configurations: " + str(len(paras)) + ", fuse steps: " + str(fuse_steps))
 
     random.shuffle (paras)
     cnt = 0
@@ -147,21 +148,23 @@ def searchSpace():
         conf_str = cfgToString(paraVector)
         ## .stc varies from stencils
         cmd = " ".join(["./drstencil", \
-          config, " --check -o ./cu/"+conf_str+".cu 2d9pt_box.stc"])
+          config, " -o ./cu/"+conf_str+".cu 2d9pt_box.stc"])
         os.system(cmd)
         print ("{0}/{1}: {2}".format(cnt, len(paras), conf_str))
         os.system("./compile_run.sh " + conf_str)
-        best = getMetrics (conf_str, startTime, best)
+        best = getMetrics (conf_str, startTime, best, fuse_steps)
 
         currentTime = datetime.datetime.now()
         if (currentTime-startTime).seconds > 3600:
             break
 
 
-    durationLog = open('duration.log', 'a')
+    durationLog = open(f'duration_{fuse_steps}.log', 'a')
     currentTime = datetime.datetime.now()
     durationLog.write (str((currentTime-startTime).seconds) + ' s, ' + str(best) + '\n')
     durationLog.close()
 
 if __name__ == '__main__':
-    searchSpace()
+    for fuse_steps in range(1, 9):
+        print(f"starting search for fuse steps = {fuse_steps}")
+        searchSpace(fuse_steps)
