@@ -13,22 +13,16 @@ order = 1
 def FilterParams(spaceVector):
     step, dist, blockSize, sn, s_unroll, blockMergeX, mergeFactorX, blockMergeY, mergeFactorY, m_threshold, prefetch = spaceVector
     shmemUsage = (step * order + 1) * (mergeFactorX * blockSize[0]) * (mergeFactorY * blockSize[1])
-    ## using too much shared memory
     if shmemUsage > 2 ** (maxShmPerBlockLg2 - 3):
         return False
-    ## dist too big or too small
     if dist > step * order or dist < (step - 1) * order:
         return False
-    ## not covering halo region
     if step * order * 2 >= min(blockSize[0] * mergeFactorX, blockSize[1] * mergeFactorY):
         return False
-    ## observed from previous tests, 8 is too small for bx
     if blockSize[0] <= 8:
         return False
-    ## observed from previous tests, block merging along dimension x brings no benefit
     if blockMergeX and mergeFactorX == 1:
         return False
-    ## duplicate
     if blockMergeY and mergeFactorY == 1:
         return False
     return True
@@ -75,15 +69,16 @@ def cfgToString(spaceVector):
 def getElapsedTime (start, end):
     return (end - start).seconds + (end - start).microseconds / 1e6
 
+
 def getMetrics(stencilName, startTime, best, fuse_steps):
     logfile = open('prof/'+str(stencilName)+'.csv', 'r')
     idx = -1
     counter = 0
     for line in logfile:
         if line.find('Metric Value') > -1:
-            idx = line.split(',').index('\"Metric Value\"')
+            idx = line.split(',').index('"Metric Value"')
         elif idx > -1 :
-            seg = line.split('\",')
+            seg = line.split('",')
             if idx < len(seg) and seg[idx-2].find("Duration") > -1:
                 duration = seg[idx][1:].replace(',','')
                 if duration.isdigit():
@@ -99,6 +94,7 @@ def getMetrics(stencilName, startTime, best, fuse_steps):
     logfile.close()
     return best
 
+
 def searchSpace(fuse_steps: int):
 
     startTime = datetime.datetime.now()
@@ -110,15 +106,15 @@ def searchSpace(fuse_steps: int):
       [fuse_steps], # time steps to fuse
       [dist for dist in range (1, fuse_steps + 1)], # Dist
       filter(lambda x: x[0] * x[1] <= 2 ** (maxThreadsPerBlockLg2),
-        blockSize), # blockSize
-      [2 ** sn for sn in range (3, 7)], # length of stream block
-      [4, 8], # Stream unrollFactors
-      [False, True], # cyclic(False) or block(True) merging for dimension x
-      [2 ** mFactorLg2 for mFactorLg2 in range (0, 3)], # merge factor for dimension x
-      [False, True], # cyclic(False) or block(True) merging for dimension y
-      [2 ** mFactorLg2 for mFactorLg2 in range (0, 3)], # merge factor for dimension y
-      [5], # threshold for merging forward
-      [False, True], # prefetch
+        blockSize),
+      [2 ** sn for sn in range (3, 7)],
+      [4, 8],
+      [False, True],
+      [2 ** mFactorLg2 for mFactorLg2 in range (0, 3)],
+      [False, True],
+      [2 ** mFactorLg2 for mFactorLg2 in range (0, 3)],
+      [5],
+      [False, True],
      )):
         paras.append (paraVector)
 
@@ -128,10 +124,10 @@ def searchSpace(fuse_steps: int):
         cnt += 1
         config = cfgToCommandLine(paraVector)
         conf_str = cfgToString(paraVector)
-        ## .stc varies from stencils
         cmd = " ".join(["./drstencil --3d", \
-          config, " -o ./cu/"+conf_str+".cu 3d7pt_star.stc"])
+          config, " -o ./cu/"+conf_str+".cu 3d27pt_box.stc"])
         os.system(cmd)
+        
         print ("{0}/{1}: {2}".format(cnt, len(paras), conf_str))
         os.system("./compile_run.sh " + conf_str)
         best = getMetrics (conf_str, startTime, best, fuse_steps)
